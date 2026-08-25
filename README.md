@@ -1,6 +1,13 @@
-# HEART 2026 Tydi tutorial
+# Tydi tutorial
 
-This repository contains a project with development container that you can open in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you clone the project and open the folder in VS Code, it will detect the dev container, and ask if you want to reopen the folder in the dev container. If you do this, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available. GUI apps may work from the terminal. A browser-based noVNC interface with a lightweight XFCE desktopenvironment is also exposed on http://localhost:6080/vnc.html. This may be more intuitive for some users. The resolution of this virtual desktop may be changed in the [devcontainer.json](.devcontainer/devcontainer.json) file.
+This repository contains a project with development container that you can open in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you clone the project and open the folder in VS Code, it will detect the dev container, and ask if you want to reopen the folder in the dev container. If you do this, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available.
+
+### Choosing a container flavour
+
+Two flavours of the container are provided, and VS Code will let you pick one when you reopen the folder in a container (`Dev Containers: Reopen in Container`). To switch flavours later, run `Dev Containers: Reopen in Container` again and select the other one.
+
+- **Tydi-Tools (VNC desktop)** – [`.devcontainer/vnc`](.devcontainer/vnc/devcontainer.json). Recommended for beginners and macOS users. In addition to the CLI tools, it runs a lightweight XFCE desktop environment, exposed as a browser-based noVNC interface on http://localhost:6080/vnc.html. This may be more intuitive for some users. The resolution of this virtual desktop may be changed with the `DESKTOP_RESOLUTION` variable in its `devcontainer.json`.
+- **Tydi-Tools (CLI only)** – [`.devcontainer/cli`](.devcontainer/cli/devcontainer.json). The same CLI tools, without the desktop and noVNC server. GUI apps may still work when launched from the terminal. It works well on Linux, acceptable but a bit less smoothly on Windows, macOS needs an X11 server.
 
 > [!NOTE]
 > On Windows, starting the dev container may fail if WSL integration is not enabled in the Docker desktop settings (see Resources tab). An alternate solution may be turning off "Mount Wayland Socket" in VS Code's settings.

@@ -1,6 +1,8 @@
 {
-  "name": "Tydi-Tools development container",
-  // Use VNC-enabled image for easy access to GUI apps
+  "name": "Tydi-Tools (VNC desktop)",
+
+  // Image with an XFCE desktop, exposed over noVNC in the browser.
+  // Its CMD (start-desktop.sh) keeps the container alive, hence overrideCommand: false below.
   "image": "hdltypetech/tydi-tools:vnc-latest",
 
   // Mounting the workspace directory to /root/workspace in the container
@@ -35,5 +37,6 @@
     }
   },
 
+  // Run the image's own CMD, so the XFCE desktop and noVNC server start up.
   "overrideCommand": false
 }
