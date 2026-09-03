@@ -20,10 +20,29 @@
     }
   },
 
-  // Optional: change the desktop resolution to fit your screen size
+  // Optional: change the desktop resolution to fit your screen size.
+  // DISPLAY has to be set here, not only by the image's start-desktop.sh: that
+  // script exports it inside its own process tree, so a VS Code terminal (a
+  // fresh docker exec) would not have it and GUI apps would fail to open a
+  // window.
   "containerEnv": {
-    "DESKTOP_RESOLUTION": "1920x1080"
+    "DESKTOP_RESOLUTION": "1920x1080",
+    "DISPLAY": ":1"
   },
+
+  // A named volume for the Scala dependency cache. Without it, every rebuild
+  // re-downloads roughly 700 MB for tinytydi/hdl and the sample circuits.
+  "mounts": [
+    "source=tinytydi-coursier,target=/var/cache/coursier,type=volume"
+  ],
+
+  // Start the desktop if the image's CMD did not, idempotently and without
+  // blocking, so the noVNC page works regardless of how the command is handled.
+  "postStartCommand": "bash -lc 'pgrep -x websockify >/dev/null || (nohup /usr/local/bin/start-desktop.sh >/tmp/desktop.log 2>&1 &)'",
+
+  // Checks out the TinyTydi submodule and builds the stimulus bundles its
+  // Chisel tests read. Idempotent, and never fails the container.
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
 
   // Development extensions that are useful for working with Tydi-tools
   "customizations": {

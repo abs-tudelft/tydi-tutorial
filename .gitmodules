@@ -1,0 +1,4 @@
+[submodule "tinytydi"]
+	path = tinytydi
+	url = https://gitlab.com/hstruik/tinytydi.git
+	branch = tutorial-branch
