@@ -1,6 +1,53 @@
 # Tydi tutorial
+This repository contains all the tools and educational ematerial and code to learn about and get started with the Tydi tools and ecosystem.
 
-This repository contains a project with development container that you can open in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you clone the project and open the folder in VS Code, it will detect the dev container, and ask if you want to reopen the folder in the dev container. If you do this, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available.
+## What is the Tydi ecosystem?
+The Tydi ecosystem encompasses several software tools, a communication standard, and an ideology.
+
+### Early history
+Development on "Tydi" started out with the development of [Fletcher](https://github.com/abs-tudelft/fletcher), a framework to stream in-memory Apache Arrow data from host into FPGA and back. Fletcher, as an interface generator, had to support the various data-structures that could be used with Apache Arrow. This flexibility offers a lot of potential, but is hard to realize. The team became aware that a sufficiently powerful data streaming mechanism was missing on the FPGA side of things. This prompted the development of the Tydi protocol.
+
+### Tydi protocol
+The **Ty**ped **D**ataflow **I**nterface, or Tydi for short, is an inter-module data streaming interface specification that is designed to offer the same maturity for defining complex component interfaces, as modern HSL paradigms provide for building the components. Its multi-tiered specification is HDL agnostic. It provides
+1. A Type system for defining complex, variable data structures
+2. Formally verified data transmission methodology
+3. Interface HDL generators for Chisel, VHDL, Verilog, etc
+4. Engineering parameters to fine-tune that interface
+
+### Debug tools
+From the development of integrations of the Tydi protocol with its nested compound types in various host languages grew the need for better tools to view and interpret simulation results of developed RTL.
+One issue with higher level HDLs is that they often compile down to Verilog or VHDL for simulation. This gives the problem that the values of the simulation output do not carry the exact same structure and naming as in your original design. For this reason **Tywaves** was developed. Tywaves allows reconstruction of the original higher level types from low level simulation data using type metadata. This gives better overview in the waveform viewer, but will not give any insights into where errors in the circuit's output originate from in your design on its own. For this purpose, a signal tracing methodology was developed. By creating a Control Flow Graph (CFG) from a circuit and gather all signal dependencies (static and dynamic from muxes and indexing), a Program Dependency Graph (PDG) can be constructed of the circuit. Combined with the simulation data, a Dynamic PDG (DPDG) kan be assembled, giving exact insight into *which branches were taken* and *which statements were activated* with *which values* in each clock cycle. This was first developed in Chisel with the name **ChiselTrace**. It is now being implemented in more host languages, prompting a rename of the front end to **SigTrail**.
+
+### Idiology for open hardware
+We believe that with open interface specifications and open source tooling, the hardware comunity can achieve more than the sum of the parts. A component with a clear specification of its interface in a protocol that is flexible enough to accomodate for most data types and behaviors will not require hacks and reverse engineering to integrate into your own design. A collection of parameterizable open source components with such interface descriptions will allow creating designs *by composition*. The debug tools help accomodate this flexibility by allow representation of it in the simulation results and find errors faster.
+
+By creating open standards for communication and circuit debug metadata, building integrations in different HDLs and workflows will become much easier, and more people can enjoy the benefits. This open source effort will lower barier-to-entry, increase resilience, and create sovereignty.
+
+## What will you learn?
+In this tutorial, you will learn
+- How the Tydi protocol works
+    - How complex data structures are mapped to Tydi types
+    - How to build a Tydi interface
+    - What engineering parameters are available for customization
+    - How data packets are processed and sent over the interface step by step according to the Tydi formalism
+- Source level debugging for high level languages (focus on Chisel)
+    - Understand the problem with the RTL source – Verilog divide for simulation
+    - How extra signal type metadata kept through circuit compilation steps enables reconstruction of the source representation of compound signals and enums from the Verilog simulation data
+    - How program slicing works and can enable tracing down faults in the RTL design
+    - How to use Surfer-Tywaves and SigTrail to do this for a few example circuits
+- Our vision for the future of hardware design
+
+## Getting started
+Get started by cloning the repo. Then, open the project in an IDE. For this tutorial we will assume [VS Code](https://code.visualstudio.com/).
+```sh
+# Clone repo
+git clone --recurse-submodules https://github.com/abs-tudelft/tydi-tutorial.git
+# Open in VS Code
+cd tydi-tutorial
+code .
+```
+
+This repository contains a project with development container that you can be used in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you cloned the project and opened the folder in VS Code, the dev container will be detected and a notification will ask if you want to reopen the folder in the dev container. If you say yes, a pop-up will ask you *which* container you want, see details below to make a choice. When you open the project in the dev ctonainer, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available.
 
 ### Choosing a container flavour
 
@@ -13,6 +60,9 @@ Two flavours of the container are provided, and VS Code will let you pick one wh
 > On Windows, starting the dev container may fail if WSL integration is not enabled in the Docker desktop settings (see Resources tab). An alternate solution may be turning off "Mount Wayland Socket" in VS Code's settings.
 
 Documenation on the container may be found on its [Docker Hub page](https://hub.docker.com/r/hdltypetech/tydi-tools), or its [GitHub repository](https://github.com/abs-tudelft/Tydi-tools).
+
+## Instructions
+TODO: Put well-structured, easy to follow instructions here.
 
 ## Resources
 
