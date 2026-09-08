@@ -62,7 +62,14 @@ Two flavours of the container are provided, and VS Code will let you pick one wh
 Documenation on the container may be found on its [Docker Hub page](https://hub.docker.com/r/hdltypetech/tydi-tools), or its [GitHub repository](https://github.com/abs-tudelft/Tydi-tools).
 
 ## Instructions
-TODO: Put well-structured, easy to follow instructions here.
+
+### Tydi
+
+See the [Tydi info document](./docs/tydi-info.md) for the material about the Tydi protocol, formalism, and generator tooling.
+
+### Debugging tools
+
+See the [debugging tools document](./docs/debugging-tools.md) for the material about source level debugging and signal tracing.
 
 ## Resources
 
@@ -83,147 +90,3 @@ Here are some resources you can check out to get more information about Tydi, Ty
     _Note: not actively maintained anymore_
     - [TIL](https://github.com/matthijsr/til-vhdl) – The Tydi Intermediate Representation to VHDL compiler  
     _Note: not actively maintained anymore_
-
-## Tywaves & ChiselTrace example circuits
-
-The `sample-circuits` folder contains example circuits taken from the examples folder of the [Tywaves-Chisel](https://github.com/jarlb/tywaves-chisel) repository. You can run the examples with `scala-cli` like so:
-
-```sh
-scala-cli test sample-circuits/circuit_name.scala
-```
-
-> [!TIP]
-> You can safely ignore any errors about unused imports and warnings/hints about packages that can be updated.
-
-Three different simulator classes are used:
-- The built-in Chisel `ParametricSimulator`, will simulate the circuit and save a `vcd` file without launching Surfer or using the type metadata.
-- Tywaves' `TywavesSimulator`, will, after simulation, launch Surfer with tywaves enabled.
-- The `ChiselTraceDebugger`. When a signal's value does not match the one specified in the `.expect()` call, the simulation process will prompt you whether you want to start a dependency trace from that signal.
-
-Some circuits will have the one simulator class, and some the other. Feel free to exchange the class.
-
-### Running Tywaves
-Tywaves will automatically be launched when the `TywavesSimulator` or `ChiselTraceDebugger` is used. Opening Surfer, it will not automatically augment the data with Tywaves, because the program does not know where the debug info is located.
-
-The full command to do this is a bit complicated due to the paths, so a helper script has been provided to set the correct paths automatically. Therefore, it can be ran with a convenience script
-```bash
-./invoke-surfer GCD
-```
-
-The full command to run Surfer with Tywaves for a certain test is
-```bash
-surfer-tywaves ./test_run_dir/GCD/ChiselTraceDebugger/runs_GCD_correctly_launch_tywaves/trace.vcd --hgldd-dir test_run_dir/tmpModule/ChiselTraceDebugger/hgldd/debug --extra-scopes TOP svsimTestbench dut --top-module GCD
-```
-
-The VCD path depends on the top module and the name of the test. The convenience script selects the most recent test in the folder.
-
-### Running ChiselTrace
-ChiselTrace can be launched from the simulation if a failing `.expect()` call is encountered. For a succesful simulation, it will not offer this. You can still launch ChiselTrace using the command line. Again, the full command to do this is a bit complicated due to the paths, so a helper script has been provided to set the correct paths automatically. Simply run
-```bash
-# Script             <TOP_MODULE> <SLICE_CRITERION> [--log] [extra_arguments...]
-./invoke-chiseltrace GCD signal:io.result
-```
-
-The full command to run ChiselTrace is like:
-```bash
-chiseltrace --slice-criterion signal:io.result --pdg-path ./pdg.json --vcd-path ./test_run_dir/GCD/ChiselTraceDebugger/runs_GCD_correctly_launch_tywaves/trace.vcd --hgldd-path ./test_run_dir/tmpModule/ChiselTraceDebugger/hgldd/debug --top-module GCD --extra-scopes TOP svsimTestbench dut --max-timesteps 16
-```
-
-The `vcd-path` depends on the top module and the name of the test. The convenience script selects the most recent test in the folder. The slice critereon can be a signal or statement. You likely want to have some `signal:io.result` or `signal:io.out`, or whatever you want to look at, based on the circuit that you are simulating.
-
-## TinyTydi: from a JSON document to a Tydi interface
-
-[TinyTydi](https://gitlab.com/hstruik/tinytydi) is included as a submodule in
-`tinytydi/`. It runs the Tydi formalism as an executable semantics: it reads a
-JSON document, infers the logical type it implies, normalises it, maps the
-document's own data onto stream transfers, and elaborates a Chisel interface
-that is checked cycle for cycle against that result.
-
-Clone with submodules, or fetch them afterwards:
-
-```sh
-git clone --recurse-submodules git@github.com:abs-tudelft/tydi-tutorial.git
-# or, in an existing clone:
-git submodule update --init tinytydi
-```
-
-The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
-the submodule out and builds the stimulus bundles the Chisel tests read. Those
-bundles are generated, not committed, so run that script by hand if you skipped
-the container.
-
-This repository's own `tydi-material/chat-messages/chat-messages.json` is the
-worked example:
-
-```sh
-python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --type-only
-```
-
-It maps to `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
-and normalises to three physical streams: the chat id, a 64-bit payload packing
-`timestamp`, `message_id` and `user_id` together, and the message characters at
-dimension 4. Then:
-
-```sh
-cd tinytydi/hdl
-scala-cli test .          # elaborate per bundle, check against the semantics
-./invoke-surfer chatmsgs  # open the waveform
-```
-
-`tydi-material/student-example/student.json` is deliberately *not* accepted:
-its `"study_end": null` is an optional, which is a `Union` of the value and
-nothing, and `Union` is outside the fragment TinyTydi implements. The error
-names the path that caused it.
-
-> [!NOTE]
-> `tinytydi/hdl/invoke-surfer` is not the `invoke-surfer` in this repository's
-> root. The root script drives the ChiselTrace sample circuits; the TinyTydi one
-> takes a bundle name and reports whether Tywaves type information was found.
-
-### From a JSON document to characters on a waveform
-
-The whole path, on any document you like. Four commands, and the only one that
-takes real time is the third.
-
-```sh
-cd tinytydi
-
-# 1. what type does the document imply? Three physical streams, and the message
-#    text ends up as 8-bit elements at dimension 4.
-./main.py json ../tydi-material/chat-messages/chat-messages.json --type-only
-
-# 2. turn it into a stimulus bundle: the parameters the circuit is elaborated
-#    from, the elements themselves, and the cycle-by-cycle trace to check against
-./main.py export --json ../tydi-material/chat-messages/chat-messages.json \
-                 --lanes 1,2,4 --out hdl/bundles/chatmsgs
-
-# 3. elaborate the interface for that type and simulate it (about 20 s warm)
-cd hdl && scala-cli test .
-
-# 4. open the waveform with the characters already on it
-./invoke-surfer chatmsgs --chars
-```
-
-Step 4 prints `Tywaves: on (typed hgldd: ...)` before it opens anything. If it
-says anything else, the waveform will still open but the types will not be
-there, and the line says which of the two reasons applies.
-
-**Then one click in the viewer.** The rows are loaded but they are numbers:
-right-click a `value` row → Format → **ASCII** to read them as characters.
-Nothing on the command line can preselect a format, so this step cannot be
-automated away.
-
-Expand `outStream_2` and you are looking at the thing the formalism describes:
-four character lanes filling up, `strb` and `endi` marking how many of them
-carry data in this transfer, and `last(i)` closing dimensions — one bit per
-dimension, so a lane that ends a word sets bit 0, a lane that ends a message
-sets bits 0 and 1, and so on outwards. `in_2` above it shows the element side
-one character per cycle, and `_state_output` below is the parse FSM: one bit per
-node of the normalised type, all of them set on the cycle `fullMap` fires.
-
-The same works for any accepted document — `./main.py export --json yours.json
---lanes 1,2,4 --out hdl/bundles/yours`, then `scala-cli test .` picks the new
-bundle up on its own, because every directory under `bundles/` is a test case.
-
-`tinytydi/hdl/README.md` has the longer version: which signals to add and why,
-and why a trace of an eight-node type contains 285 of them.

@@ -32,6 +32,54 @@ When a node is hovered, it shows the related line in the Chisel source code of t
 
 The repository contains various example circuits taken from the examples folder of the [Tywaves-Chisel](https://github.com/jarlb/tywaves-chisel) repository. See the main readme for details on how to execute them.
 
+
+## Tywaves & ChiselTrace example circuits
+
+The `sample-circuits` folder contains example circuits taken from the examples folder of the [Tywaves-Chisel](https://github.com/jarlb/tywaves-chisel) repository. You can run the examples with `scala-cli` like so:
+
+```sh
+scala-cli test sample-circuits/circuit_name.scala
+```
+
+> [!TIP]
+> You can safely ignore any errors about unused imports and warnings/hints about packages that can be updated.
+
+Three different simulator classes are used:
+- The built-in Chisel `ParametricSimulator`, will simulate the circuit and save a `vcd` file without launching Surfer or using the type metadata.
+- Tywaves' `TywavesSimulator`, will, after simulation, launch Surfer with tywaves enabled.
+- The `ChiselTraceDebugger`. When a signal's value does not match the one specified in the `.expect()` call, the simulation process will prompt you whether you want to start a dependency trace from that signal.
+
+Some circuits will have the one simulator class, and some the other. Feel free to exchange the class.
+
+### Running Tywaves
+Tywaves will automatically be launched when the `TywavesSimulator` or `ChiselTraceDebugger` is used. Opening Surfer, it will not automatically augment the data with Tywaves, because the program does not know where the debug info is located.
+
+The full command to do this is a bit complicated due to the paths, so a helper script has been provided to set the correct paths automatically. Therefore, it can be ran with a convenience script
+```bash
+./invoke-surfer GCD
+```
+
+The full command to run Surfer with Tywaves for a certain test is
+```bash
+surfer-tywaves ./test_run_dir/GCD/ChiselTraceDebugger/runs_GCD_correctly_launch_tywaves/trace.vcd --hgldd-dir test_run_dir/tmpModule/ChiselTraceDebugger/hgldd/debug --extra-scopes TOP svsimTestbench dut --top-module GCD
+```
+
+The VCD path depends on the top module and the name of the test. The convenience script selects the most recent test in the folder.
+
+### Running ChiselTrace
+ChiselTrace can be launched from the simulation if a failing `.expect()` call is encountered. For a succesful simulation, it will not offer this. You can still launch ChiselTrace using the command line. Again, the full command to do this is a bit complicated due to the paths, so a helper script has been provided to set the correct paths automatically. Simply run
+```bash
+# Script             <TOP_MODULE> <SLICE_CRITERION> [--log] [extra_arguments...]
+./invoke-chiseltrace GCD signal:io.result
+```
+
+The full command to run ChiselTrace is like:
+```bash
+chiseltrace --slice-criterion signal:io.result --pdg-path ./pdg.json --vcd-path ./test_run_dir/GCD/ChiselTraceDebugger/runs_GCD_correctly_launch_tywaves/trace.vcd --hgldd-path ./test_run_dir/tmpModule/ChiselTraceDebugger/hgldd/debug --top-module GCD --extra-scopes TOP svsimTestbench dut --max-timesteps 16
+```
+
+The `vcd-path` depends on the top module and the name of the test. The convenience script selects the most recent test in the folder. The slice critereon can be a signal or statement. You likely want to have some `signal:io.result` or `signal:io.out`, or whatever you want to look at, based on the circuit that you are simulating.
+
 ## ChiselWatt
 
 The docker container image contains a prepared clone of our group’s fork of the ChiselWatt open source POWER ISA processor ([see repository](https://github.com/jarlb/chiselwatt/)). This clone, and thus the code, lives in `/usr/src/chiselwatt` within the container. In that directory you can run the following command to execute the simulation of the ChiselWatt core with a simple program. Execution, after downloading dependencies and compiling scala code, is around a minute.

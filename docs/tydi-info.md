@@ -1,5 +1,142 @@
 # Tydi
 
+In this tutorial you will learn about Tydi step by step through examples. For a top-down read-trough of what Tydi is and how types are built up, see the [Understanding Tydi page](https://abs-tudelft.github.io/docs/tydi/what-is-tydi/) of the documentation.
+
+## A simple stream
+
+For our first stream, we will take a look at a data stream as one could receive from a minimal weather station with temperature and humidity sensor. Its data might look like:
+
+```json
+[
+  {
+    "timestamp": 1773068058000,
+    "temperature": 21.5,
+    "humidity": 45.2
+  },
+  {
+    "timestamp": 1773068118000,
+    "temperature": 21.8,
+    "humidity": 44.8
+  },
+  {
+    "timestamp": 1773068178000,
+    "temperature": 22.1,
+    "humidity": 44.5
+  }
+]
+```
+
+We will convert this data type to a Tydi structure to understand the mapping process and get an idea of what a stream is. For this, [open the example in the Tydi Stream Visualizer](http://localhost:5173/tydi-stream-vis/#input=%5B%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068058000%2C%0A%20%20%20%20%22temperature%22%3A%2021.5%2C%0A%20%20%20%20%22humidity%22%3A%2045.2%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068118000%2C%0A%20%20%20%20%22temperature%22%3A%2021.8%2C%0A%20%20%20%20%22humidity%22%3A%2044.8%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068178000%2C%0A%20%20%20%20%22temperature%22%3A%2022.1%2C%0A%20%20%20%20%22humidity%22%3A%2044.5%0A%20%20%7D%0A%5D). The JSON code from above is pre-filled as data input.
+
+In the **Tydi structure builder** panel, you will see something like this
+
+![Temperature and humidity sensor example](./figures/temp-hum-sensor-example.svg)
+
+Clearly, a `Group` is being created (analog to an object), with several fields (analog to the properties), each of which is a base number, and so emitted as `Bit` types. You can customize the bit-widths of the fields. For example, the float values for temperature and humidity might be a `single` (instead of `double`), and thus be `32` bits.
+
+In the **stream visualizer** panel, our stream of 3 elements can be inspected. If you click one of the packets, the data in the source JSON (data import panel) will be highlighted and the **packet inspector** panel will automatically open. There the layout of the packet can be inspected together with its index and dimensionality information. If you click the last element (in purple), you will see that the dimensionality information indicates `1`, as it is the last element of the stream.
+
+## TinyTydi: from a JSON document to a Tydi interface
+
+[TinyTydi](https://gitlab.com/hstruik/tinytydi) is included as a submodule in
+`tinytydi/`. It runs the Tydi formalism as an executable semantics: it reads a
+JSON document, infers the logical type it implies, normalises it, maps the
+document's own data onto stream transfers, and elaborates a Chisel interface
+that is checked cycle for cycle against that result.
+
+Clone with submodules, or fetch them afterwards:
+
+```sh
+git clone --recurse-submodules git@github.com:abs-tudelft/tydi-tutorial.git
+# or, in an existing clone:
+git submodule update --init tinytydi
+```
+
+The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
+the submodule out and builds the stimulus bundles the Chisel tests read. Those
+bundles are generated, not committed, so run that script by hand if you skipped
+the container.
+
+This repository's own `tydi-material/chat-messages/chat-messages.json` is the
+worked example:
+
+```sh
+python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --type-only
+```
+
+It maps to `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
+and normalises to three physical streams: the chat id, a 64-bit payload packing
+`timestamp`, `message_id` and `user_id` together, and the message characters at
+dimension 4. Then:
+
+```sh
+cd tinytydi/hdl
+scala-cli test .          # elaborate per bundle, check against the semantics
+./invoke-surfer chatmsgs  # open the waveform
+```
+
+`tydi-material/student-example/student.json` is deliberately *not* accepted:
+its `"study_end": null` is an optional, which is a `Union` of the value and
+nothing, and `Union` is outside the fragment TinyTydi implements. The error
+names the path that caused it.
+
+> [!NOTE]
+> `tinytydi/hdl/invoke-surfer` is not the `invoke-surfer` in this repository's
+> root. The root script drives the ChiselTrace sample circuits; the TinyTydi one
+> takes a bundle name and reports whether Tywaves type information was found.
+
+### From a JSON document to characters on a waveform
+
+The whole path, on any document you like. Four commands, and the only one that
+takes real time is the third.
+
+```sh
+cd tinytydi
+
+# 1. what type does the document imply? Three physical streams, and the message
+#    text ends up as 8-bit elements at dimension 4.
+./main.py json ../tydi-material/chat-messages/chat-messages.json --type-only
+
+# 2. turn it into a stimulus bundle: the parameters the circuit is elaborated
+#    from, the elements themselves, and the cycle-by-cycle trace to check against
+./main.py export --json ../tydi-material/chat-messages/chat-messages.json \
+                 --lanes 1,2,4 --out hdl/bundles/chatmsgs
+
+# 3. elaborate the interface for that type and simulate it (about 20 s warm)
+cd hdl && scala-cli test .
+
+# 4. open the waveform with the characters already on it
+./invoke-surfer chatmsgs --chars
+```
+
+Step 4 prints `Tywaves: on (typed hgldd: ...)` before it opens anything. If it
+says anything else, the waveform will still open but the types will not be
+there, and the line says which of the two reasons applies.
+
+**Then one click in the viewer.** The rows are loaded but they are numbers:
+right-click a `value` row → Format → **ASCII** to read them as characters.
+Nothing on the command line can preselect a format, so this step cannot be
+automated away.
+
+Expand `outStream_2` and you are looking at the thing the formalism describes:
+four character lanes filling up, `strb` and `endi` marking how many of them
+carry data in this transfer, and `last(i)` closing dimensions — one bit per
+dimension, so a lane that ends a word sets bit 0, a lane that ends a message
+sets bits 0 and 1, and so on outwards. `in_2` above it shows the element side
+one character per cycle, and `_state_output` below is the parse FSM: one bit per
+node of the normalised type, all of them set on the cycle `fullMap` fires.
+
+The same works for any accepted document — `./main.py export --json yours.json
+--lanes 1,2,4 --out hdl/bundles/yours`, then `scala-cli test .` picks the new
+bundle up on its own, because every directory under `bundles/` is a test case.
+
+`tinytydi/hdl/README.md` has the longer version: which signals to add and why,
+and why a trace of an eight-node type contains 285 of them.
+
+---
+
+## Original material
+
 Material for experimenting with Tydi is given in this markdown file and in the tydi-material folder.
 
 ## Visualizer application
