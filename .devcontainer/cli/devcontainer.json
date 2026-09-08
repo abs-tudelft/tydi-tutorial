@@ -9,6 +9,17 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/root/workspace,type=bind",
   "workspaceFolder": "/root/workspace",
 
+  // A named volume for the Scala dependency cache, shared with the VNC flavour.
+  // Without it, every rebuild re-downloads roughly 700 MB for tinytydi/hdl and
+  // the sample circuits.
+  "mounts": [
+    "source=tinytydi-coursier,target=/var/cache/coursier,type=volume"
+  ],
+
+  // Checks out the TinyTydi submodule and builds the stimulus bundles its
+  // Chisel tests read. Idempotent, and never fails the container.
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+
   // Development extensions that are useful for working with Tydi-tools
   "customizations": {
     "vscode": {
