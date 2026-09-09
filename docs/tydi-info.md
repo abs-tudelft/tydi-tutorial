@@ -51,6 +51,10 @@ This will give you the simple block structure shown below.
 
 By default, strings get recognized as a stream of characters in the application. Because it is not just a string we want to transmit, but an *array* of strings, the dimensionality of the data is increased. In contrast to the previous example, this stream, by default, also has multiple lanes, to reduce the horizontal space required to view all the transfers in the **stream visualizer** panel. The panel shows each character sent over the bus. The end of each word is marked by a yellow element and the end of the entire sequence again pink. Click the elements to check out the `last` flags information of the packet.
 
+### More complicated data
+If you want to check out how more complicated data translates to a Tydi structure and what the packets would look like being sent over the various streams, you can check out one of the more complicated examples below ([chats example](#chats-with-messages-example), [student data with exam results](#student-data-analysis)), put in some data of your own project (the app operates fully client side), or generate some data you find interesting with an LLM. For this, you can use the following prompt format:
+> *Write a code block with an example JSON structure representing [...]. The outer structure must be an array, not an object.*
+
 ## Tooling
 
 The tooling available for code generation for Tydi interfaces and circuits comprises of two parts that will later be merged to a singular comprehensive toolset. One set of tools available creates the plumbing between components that are assumed to have a Tydi compliant interface. The other toolset, still in development, allows generating the actual interface logic based on the formalism to *ensure* a Tydi compliant interface, loosening the constraints to the developer to build components with Tydi interfaces.
@@ -62,23 +66,31 @@ The tooling available for code generation for Tydi interfaces and circuits compr
 > ```sh
 > git submodule update --init tinytydi
 > ```
+> or
+> ```sh
+> .devcontainer/bootstrap.sh
+> ```
 
-This set of tools is centred around an executable version of the semantics, simulating an interface, illustrating how for a given type it iteratively map elements onto transfers.
-By supplying an intialized json object, the tool can derive the tydi-type equivalent, normalize it and subsequently apply the simulation of the interface to the elements. 
-This way you can visualize how the formalism would transmit your json object over the wire. 
-Furthermore, since a set of input streams has a strict 1to1 correspondence of the output stream, the simulated trace can be used to verify the hardware implementation. 
-by invoking the export funcitonality, the toolset can export implementation tables, which can be interpredted by our chisel implementation, to generate the actual HDL that implements an interface of the provided type and behavior. 
-It is worth noting that this integration is intended for the tutorial illustration purposes, whereas a fully fledged generator tooling would generate the chisel directly from the formal implementation. The tutorial implementation results in quite a few additional signals and debug probes that would be undesirable in an actual implementation. . 
+#### Summary
+This set of tools is centred around an executable version of the semantics, simulating an interface, illustrating how for a given type it iteratively maps elements onto transfers.
+By supplying an intialized `JSON` object, the tool can derive the Tydi-type equivalent, normalize it and apply the simulation of the interface *to* the data elements. 
+This way, you can visualize how the formalism would transmit your json object over the wire. 
+Furthermore, since a set of input streams has a strict 1-to-1 correspondence of the output stream, the simulated trace can be used to *verify* the hardware implementation. 
+By invoking the export funcitonality, the toolset can export implementation tables, which can be interpredted by our Chisel implementation, to generate the actual HDL that implements an interface of the provided type and behavior. 
+> It is worth noting that this integration is intended for the tutorial illustration purposes, whereas a fully fledged generator tooling would generate the Chisel directly from the formal implementation. The tutorial implementation results in quite a few additional signals and debug probes that would be undesirable in an actual implementation.
 
-The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
-the submodule out and builds the stimulus bundles the Chisel tests read. 
-
-Everything in this section runs from the `tinytydi/` directory, so go there
-first. If you skipped the container, run the bootstrap script by hand as well.
+#### Preparation
+The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks out the submodule and builds the stimulus bundles the Chisel tests read. If you skipped the container, run the bootstrap script by hand as well.
 
 ```sh
+bash .devcontainer/bootstrap.sh
+```
+
+#### Example
+Everything in this section runs from the `tinytydi/` directory, so go there
+first.
+```sh
 cd tinytydi
-bash ../.devcontainer/bootstrap.sh
 ```
 
 Start with the chat message example from the paper and the presentation. 
@@ -87,28 +99,32 @@ Start with the chat message example from the paper and the presentation.
 ./main.py example
 ```
 
-It steps the semantics one Enter at a time, redrawing the input registers, the
+It steps the semantics one <kbd>Enter</kbd> at a time, redrawing the input registers, the
 parse tree, the lane buffers and the transfers so far after every step, with the
 rule that fired named above them. Characters appear as letters rather than
-bytes, with the dimension they close in brackets. The 13 characters of the
+bytes, with the *dimension they close* in brackets. The 13 characters of the
 message take roughly forty steps.
 
-This repository's own `../tydi-material/chat-messages/chat-messages.json` is a slight expansion of the worked example, adding user id and message id. 
+This repository's own [`tydi-material/chat-messages/chat-messages.json`](../tydi-material/chat-messages/chat-messages.json) is a slight expansion of the worked example, adding `user id` and `message id`. 
 
 ```sh
 python3 ./main.py json ../tydi-material/chat-messages/chat-messages.json --type-only
 ```
 
-This json is mapped to the tydi type `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
-and normalises to three physical streams: the chat id, a 64-bit payload packing
-`timestamp`, `message_id` and `user_id` together, and the message characters at
-dimension 4. Per stream it also prints the width, the dimension, which json
-fields feed it and how many elements it carries. Without `--type-only` the
+This JSON is mapped to the Tydi type  
+$Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))$  
+and normalises to three physical streams:
+1. The chat id
+2. A 64-bit payload packing `timestamp`, `message_id` and `user_id` together
+3. The message characters at dimension 4.
+
+Per stream it also prints the width, the dimension, which JSON
+fields feed it, and how many elements it carries. Without `--type-only` the
 document's own data is run through the semantics as well, which prints the
 dashboard described below and a transfer count for the whole document.
 
-Of note, the simulator currently does not support Unions. This means nullable fields and variant types in json schema cannot be translated to their tydi equivalent. 
-`../tydi-material/student-example/student.json` is an example and deliberately *not* accepted:
+Of note, the simulator currently does not support the $Union$ type. This means nullable fields and variant types in JSON schema cannot be translated to their Tydi equivalent. 
+The [student example](#student-data-analysis) ([`tydi-material/student-example/student.json`](../tydi-material/student-example/student.json)) is an example and deliberately *not* accepted:
 its `"study_end": null` is an optional, which is a `Union` of the value and nothing.
 
 > [!NOTE]
@@ -117,19 +133,21 @@ its `"study_end": null` is an optional, which is a `Union` of the value and noth
 > circuits; the TinyTydi one takes a bundle name and reports whether Tywaves
 > type information was found.
 
-### From json to a waveform
+#### From JSON to a waveform
 
-```
-# 1. derive the tydi type of the document: three physical streams, with the
+Seeing the formalism in action in the terminal is fun, but we also mentioned that the tool can build a real RTL interface that can be simulated. To build the interface and view how the interface operates in the waveform viewer, follow these steps:
+
+```sh
+# 1. Derive the Tydi type of the document: three physical streams, with the
 #    message text as 8-bit elements at dimension 4.
 python3 ./main.py json ../tydi-material/chat-messages/chat-messages.json --type-only
 
-# 2. turn it into a stimulus bundle: the parameters the circuit is elaborated
+# 2. Turn it into a stimulus bundle: the parameters the circuit is elaborated
 #    from, the elements themselves, and the cycle-by-cycle trace to check against
 python3 ./main.py export --json ../tydi-material/chat-messages/chat-messages.json \
                                 --lanes 1,2,4 --out hdl/bundles/chatmsgs
 
-# 3. elaborate the interface for that type and simulate it (about 20 s warm).
+# 3. Elaborate the interface for that type and simulate it (about 20 s warm).
 #    Steps 3 and 4 resolve their paths against the working directory, so from
 #    here on you are in hdl/ rather than in tinytydi/.
 cd hdl
@@ -139,7 +157,7 @@ scala-cli test .
 ./invoke-surfer chatmsgs --chars
 ```
 
-Step 4 prints `Tywaves: on (typed hgldd: ...)` before it opens anything. On
+*Step 4* prints `Tywaves: on (typed hgldd: ...)` before it opens anything. On
 anything else the waveform still opens, but without type information, and the
 line states which of the two reasons applies.
 
@@ -160,9 +178,9 @@ yours.json --lanes 1,2,4 --out hdl/bundles/yours` from `tinytydi/`, after which
 `scala-cli test .` in `hdl` picks the new bundle up on its own, because every
 directory under `bundles/` is a test case.
 
-`hdl/README.md` further describes the method for generating the hardware. 
+[`hdl/README.md`](../tinytydi/hdl/README.md) further describes the method for generating the hardware.
 
-### Other subcommands
+#### Other subcommands
 
 `./main.py` without arguments lists them. Besides `example`, `json` and
 `export`:
@@ -184,19 +202,17 @@ directory under `bundles/` is a test case.
   one rewrite at a time. It is also the quickest way to count the physical
   streams of a type, which is how many values `--lanes` expects.
 
----
+### Circuit assembly by composition with Tydi
 
-## Original material
+This section provides material for experimenting with the dataflow routing boilerplate generation tooling of Tydi. All code that is referenced can be found in the `tydi-material` folder.
 
-Material for experimenting with Tydi is given in this markdown file and in the tydi-material folder.
-
-## Pipeline example
+#### Pipeline example
 
 This example comes from the original [Tydi-Chisel library](https://github.com/abs-tudelft/tydi-chisel) and the conference and journal publications. The idea is that we create a simple streaming pipeline that transforms some data. Specifically, we take in a *stream of numbers with timestamps attached*. This stream first gets filtered on $value\geq0$ and then reduced to statistics: min value, max value, sum of values, and average. The block schedule for this system is as follows:
 
 ![number-pipeline-simple.svg](figures/number-pipeline-simple.svg)
 
-### **Tydi-lang**
+##### **Tydi-lang**
 
 The example starts with a description of the streams and streamlets in Tydi-lang.
 
@@ -267,7 +283,7 @@ scala-cli output/json_IR_generation_stub.scala output/json_IR_main.scala
 
 The folder also contains handwritten versions in Chisel to show what an optimised code that uses library utilities looks like. There is a single-lane and multi-lane version.
 
-### **Tydi type**
+##### **Tydi type**
 
 The Tydi type that corresponds to the number stream is as follows:
 
@@ -275,7 +291,7 @@ $Stream(t=Group(Bits(64), Bits(64)), d=1)$
 
 Or, expressed in the syntax of the Tydi formalism: $Dim(Group(Bits(64), Bits(64)))$
 
-### **Data**
+##### **Data**
 
 Some example data can be generated with the following JavaScript method. Below this block is some pre-generated data.
 
@@ -366,11 +382,11 @@ Transforming this into lists of intputs and outputs gives the following arrays:
 
 These can be inserted in separate instances of the visualizer. For the input, the number of lanes (`n`) should be a bit higher, so there is more overview.
 
-#### Exercises
+##### **Exercises**
 
 Insert the outputs and inputs into separate instances of the visualizer and analyse the structure and packets.
 
-### **Chisel**
+##### **Chisel**
 
 When the Tydi-lang code is transpiled to Chisel code, the following is obtained.
 
@@ -417,14 +433,15 @@ class PipelineExampleModule extends SimpleProcessorBase(new NumberGroup, new Sta
 }
 ```
 
-## Student data analysis
+#### Student data analysis
 
 A more advanced example is a dataset of students and their exam results. This example also comes from the original [Tydi-Chisel library](https://github.com/abs-tudelft/tydi-chisel) and the journal publication. A lot of streams are involved, because the data contains a lot of strings, and each string is a sequence of unknown runtime length.
 
-### **JSON data**
+##### **JSON data**
 
 The data looks like this
 
+Snippet of [`tydi-material/student-example/student.json`](../tydi-material/student-example/student.json)
 ```json
 [
   {
@@ -449,202 +466,22 @@ The data looks like this
         "grade": 60
       }
     ]
-  },
-  {
-    "student_number": "S234567890",
-    "name": "Jane Smith",
-    "birthdate": "2002-08-20",
-    "study_start": "2020-09-01",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "jane.smith@example.com",
-    "exams": [
-      {
-        "course_code": "CS302",
-        "course_name": "Data Structures and Algorithms",
-        "exam_date": "2024-02-22",
-        "grade": 85
-      },
-      {
-        "course_code": "ELEC301",
-        "course_name": "Computer Networks",
-        "exam_date": "2023-11-17",
-        "grade": 75
-      }
-    ]
-  },
-  {
-    "student_number": "S345678901",
-    "name": "Bob Johnson",
-    "birthdate": "1998-03-12",
-    "study_start": "2019-01-15",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "bob.johnson@example.com",
-    "exams": [
-      {
-        "course_code": "CS203",
-        "course_name": "Operating Systems",
-        "exam_date": "2023-05-19",
-        "grade": 90
-      },
-      {
-        "course_code": "INFO201",
-        "course_name": "Database Management Systems",
-        "exam_date": "2024-03-25",
-        "grade": 80
-      }
-    ]
-  },
-  {
-    "student_number": "S456789012",
-    "name": "Emily Chen",
-    "birthdate": "2005-10-28",
-    "study_start": "2018-09-01",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "emily.chen@example.com",
-    "exams": [
-      {
-        "course_code": "CS404",
-        "course_name": "Artificial Intelligence and Machine Learning",
-        "exam_date": "2023-12-01",
-        "grade": 95
-      },
-      {
-        "course_code": "STAT301",
-        "course_name": "Data Mining",
-        "exam_date": "2024-02-15",
-        "grade": 85
-      }
-    ]
-  },
-  {
-    "student_number": "S567890123",
-    "name": "Michael Lee",
-    "birthdate": "1995-06-22",
-    "study_start": "2017-01-16",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "michael.lee@example.com",
-    "exams": [
-      {
-        "course_code": "CS301",
-        "course_name": "Programming Languages and Paradigms",
-        "exam_date": "2023-04-14",
-        "grade": 88
-      },
-      {
-        "course_code": "GAME201",
-        "course_name": "Game Development with Python",
-        "exam_date": "2024-01-18",
-        "grade": 92
-      }
-    ]
-  },
-  {
-    "student_number": "S678901234",
-    "name": "Sarah Kim",
-    "birthdate": "2001-02-14",
-    "study_start": "2016-09-15",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "sarah.kim@example.com",
-    "exams": [
-      {
-        "course_code": "CS402",
-        "course_name": "Web Development with JavaScript and HTML/CSS",
-        "exam_date": "2023-11-10",
-        "grade": 95
-      },
-      {
-        "course_code": "INFO302",
-        "course_name": "Human-Computer Interaction Design Principles",
-        "exam_date": "2024-03-01",
-        "grade": 90
-      }
-    ]
-  },
-  {
-    "student_number": "S789012345",
-    "name": "David Patel",
-    "birthdate": "1992-04-18",
-    "study_start": "2015-08-15",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "david.patel@example.com",
-    "exams": [
-      {
-        "course_code": "CS501",
-        "course_name": "Compilers and Interpreters",
-        "exam_date": "2023-03-17",
-        "grade": 92
-      },
-      {
-        "course_code": "ELEC401",
-        "course_name": "Computer Architecture",
-        "exam_date": "2024-02-01",
-        "grade": 88
-      }
-    ]
-  },
-  {
-    "student_number": "S890123456",
-    "name": "Olivia Brown",
-    "birthdate": "2003-11-25",
-    "study_start": "2019-09-15",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "olivia.brown@example.com",
-    "exams": [
-      {
-        "course_code": "CS302",
-        "course_name": "Data Structures and Algorithms",
-        "exam_date": "2023-12-15",
-        "grade": 85
-      },
-      {
-        "course_code": "INFO201",
-        "course_name": "Database Management Systems",
-        "exam_date": "2024-03-22",
-        "grade": 80
-      }
-    ]
-  },
-  {
-    "student_number": "S901234567",
-    "name": "Alexander White",
-    "birthdate": "1990-01-05",
-    "study_start": "2018-08-15",
-    "study_end": null,
-    "study": "Computer Science",
-    "email": "alexander.white@example.com",
-    "exams": [
-      {
-        "course_code": "CS401",
-        "course_name": "Network Security and Cryptography",
-        "exam_date": "2023-11-17",
-        "grade": 95
-      },
-      {
-        "course_code": "GAME302",
-        "course_name": "Game Development with C++",
-        "exam_date": "2024-02-15",
-        "grade": 90
-      }
-    ]
   }
+  // Other students
 ]
 ```
 
-It should be noted that this example does not give the most interesting streaming type, as nesting depth is limited of both the groups and the streams. The most interesting data is probably the strings within the exams info, because they are 3rd dimension data, resulting in more complex relationships between an element and its role in the ending of sequences.
+It should be noted that this example does not give the most interesting streaming type, as nesting depth is limited of both the groups and the streams. The most interesting data is probably the strings within the exams info, because they are 3<sup>rd</sup> dimension data, resulting in more complex relationships between an element and its role in the ending of sequences.
 
-## Chats with messages example
+#### Chats with messages example
 
 An example that shows various interesting aspects of Tydi’s typing and protocol is a list of chats that each contain messages with some metadata and text that is split up in words. This means that the characters in the messages are 4-dimensional data elements (chats→messages→words→characters). The first and second dimension elements carry some metadata about respectively the chats and the messages.
 
-### **JSON**
+[Open example in the stream visualizer](https://abs-tudelft.github.io/tydi-stream-vis/#input=%5B%0A%20%20%7B%0A%20%20%20%20%22chat_id%22%3A%20102938475612345678%2C%0A%20%20%20%20%22messages%22%3A%20%5B%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712052000%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%209001%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%201001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Shall%22%2C%20%22we%22%2C%20%22order%22%2C%20%22pizza%22%2C%20%22tonight%3F%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712052060%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%209002%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%201002%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Sure%2C%22%2C%20%22I%22%2C%20%22would%22%2C%20%22love%22%2C%20%22some%22%2C%20%22Pepperoni.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712052120%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%209003%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%201001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Great%2C%22%2C%20%22I%22%2C%20%22will%22%2C%20%22place%22%2C%20%22the%22%2C%20%22order%22%2C%20%22now.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712052180%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%209004%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%201002%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Don't%22%2C%20%22forget%22%2C%20%22the%22%2C%20%22garlic%22%2C%20%22dipping%22%2C%20%22sauce!%22%5D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%5D%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22chat_id%22%3A%20223344556677889900%2C%0A%20%20%20%20%22messages%22%3A%20%5B%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712138400%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2012050%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%202005%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Did%22%2C%20%22you%22%2C%20%22see%22%2C%20%22the%22%2C%20%22latest%22%2C%20%22rocket%22%2C%20%22launch%3F%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712138520%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2012051%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%202006%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22The%22%2C%20%22booster%22%2C%20%22landing%22%2C%20%22was%22%2C%20%22incredible.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712138600%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2012052%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%202005%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22It%22%2C%20%22still%22%2C%20%22feels%22%2C%20%22like%22%2C%20%22science%22%2C%20%22fiction.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712138700%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2012053%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%202006%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22True%2C%22%2C%20%22the%22%2C%20%22reusability%22%2C%20%22is%22%2C%20%22a%22%2C%20%22game%22%2C%20%22changer.%22%5D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%5D%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22chat_id%22%3A%20556677889900112233%2C%0A%20%20%20%20%22messages%22%3A%20%5B%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712224800%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2033001%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%203001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Is%22%2C%20%22the%22%2C%20%22deployment%22%2C%20%22to%22%2C%20%22production%22%2C%20%22finished%3F%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712224900%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2033002%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%203002%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Yes%2C%22%2C%20%22all%22%2C%20%22unit%22%2C%20%22tests%22%2C%20%22passed%22%2C%20%22successfully.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712224950%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2033003%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%203001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Great%22%2C%20%22job%22%2C%20%22team!%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712225000%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2033004%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%203003%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22I%22%2C%20%22am%22%2C%20%22monitoring%22%2C%20%22the%22%2C%20%22logs%22%2C%20%22now.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712225100%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2033005%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%203003%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Everything%22%2C%20%22looks%22%2C%20%22stable%22%2C%20%22so%22%2C%20%22far.%22%5D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%5D%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22chat_id%22%3A%20998877665544332211%2C%0A%20%20%20%20%22messages%22%3A%20%5B%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712311200%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2055010%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%204001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22I%22%2C%20%22started%22%2C%20%22reading%22%2C%20%22that%22%2C%20%22new%22%2C%20%22fantasy%22%2C%20%22novel.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712311300%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2055011%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%204002%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22The%22%2C%20%22world-building%22%2C%20%22is%22%2C%20%22absolutely%22%2C%20%22stunning.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712311400%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2055012%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%204001%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22Wait%22%2C%20%22until%22%2C%20%22you%22%2C%20%22get%22%2C%20%22to%22%2C%20%22chapter%22%2C%20%22five.%22%5D%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%22timestamp%22%3A%201712311500%2C%0A%20%20%20%20%20%20%20%20%22message_id%22%3A%2055013%2C%0A%20%20%20%20%20%20%20%20%22user_id%22%3A%204002%2C%0A%20%20%20%20%20%20%20%20%22words%22%3A%20%5B%22No%22%2C%20%22spoilers%22%2C%20%22please!%22%2C%20%22I%22%2C%20%22am%22%2C%20%22only%22%2C%20%22on%22%2C%20%22page%22%2C%20%22ten.%22%5D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%5D%0A%20%20%7D%0A%5D%0A)
 
+##### **JSON**
+
+Snippet of [`tydi-material/chat-messages/chat-messages.json`](../tydi-material/chat-messages/chat-messages.json)
 ```json
 [
   {
@@ -675,104 +512,12 @@ An example that shows various interesting aspects of Tydi’s typing and protoco
         "words": ["Don't", "forget", "the", "garlic", "dipping", "sauce!"]
       }
     ]
-  },
-  {
-    "chat_id": 223344556677889900,
-    "messages": [
-      {
-        "timestamp": 1712138400,
-        "message_id": 12050,
-        "user_id": 2005,
-        "words": ["Did", "you", "see", "the", "latest", "rocket", "launch?"]
-      },
-      {
-        "timestamp": 1712138520,
-        "message_id": 12051,
-        "user_id": 2006,
-        "words": ["The", "booster", "landing", "was", "incredible."]
-      },
-      {
-        "timestamp": 1712138600,
-        "message_id": 12052,
-        "user_id": 2005,
-        "words": ["It", "still", "feels", "like", "science", "fiction."]
-      },
-      {
-        "timestamp": 1712138700,
-        "message_id": 12053,
-        "user_id": 2006,
-        "words": ["True,", "the", "reusability", "is", "a", "game", "changer."]
-      }
-    ]
-  },
-  {
-    "chat_id": 556677889900112233,
-    "messages": [
-      {
-        "timestamp": 1712224800,
-        "message_id": 33001,
-        "user_id": 3001,
-        "words": ["Is", "the", "deployment", "to", "production", "finished?"]
-      },
-      {
-        "timestamp": 1712224900,
-        "message_id": 33002,
-        "user_id": 3002,
-        "words": ["Yes,", "all", "unit", "tests", "passed", "successfully."]
-      },
-      {
-        "timestamp": 1712224950,
-        "message_id": 33003,
-        "user_id": 3001,
-        "words": ["Great", "job", "team!"]
-      },
-      {
-        "timestamp": 1712225000,
-        "message_id": 33004,
-        "user_id": 3003,
-        "words": ["I", "am", "monitoring", "the", "logs", "now."]
-      },
-      {
-        "timestamp": 1712225100,
-        "message_id": 33005,
-        "user_id": 3003,
-        "words": ["Everything", "looks", "stable", "so", "far."]
-      }
-    ]
-  },
-  {
-    "chat_id": 998877665544332211,
-    "messages": [
-      {
-        "timestamp": 1712311200,
-        "message_id": 55010,
-        "user_id": 4001,
-        "words": ["I", "started", "reading", "that", "new", "fantasy", "novel."]
-      },
-      {
-        "timestamp": 1712311300,
-        "message_id": 55011,
-        "user_id": 4002,
-        "words": ["The", "world-building", "is", "absolutely", "stunning."]
-      },
-      {
-        "timestamp": 1712311400,
-        "message_id": 55012,
-        "user_id": 4001,
-        "words": ["Wait", "until", "you", "get", "to", "chapter", "five."]
-      },
-      {
-        "timestamp": 1712311500,
-        "message_id": 55013,
-        "user_id": 4002,
-        "words": ["No", "spoilers", "please!", "I", "am", "only", "on", "page", "ten."]
-      }
-    ]
   }
+  // Other chats
 ]
 ```
 
-### Exercises
+##### **Exercises**
 
 - Click on various elements in the **Tydi structure builder** or **stream visualizer** tab. Check out which elements they correspond to in the other tabs, such as the input data, or the Tydi structure (when clicking in the visualizer).
 - Inspect the data packing of the message data. Change the bit widths in the block editor.
