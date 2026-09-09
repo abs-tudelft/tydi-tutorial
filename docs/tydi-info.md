@@ -36,13 +36,16 @@ Clearly, a `Group` is being created (analog to an object), with several fields (
 
 In the **stream visualizer** panel, our stream of 3 elements can be inspected. If you click one of the packets, the data in the source JSON (data import panel) will be highlighted and the **packet inspector** panel will automatically open. There the layout of the packet can be inspected together with its index and dimensionality information. If you click the last element (in purple), you will see that the dimensionality information indicates `1`, as it is the last element of the stream.
 
-## TinyTydi: from a JSON document to a Tydi interface
+## TinyTydi: generating interface implementations
 
 [TinyTydi](https://gitlab.com/hstruik/tinytydi) is included as a submodule in
-`tinytydi/`. It runs the Tydi formalism as an executable semantics: it reads a
-JSON document, infers the logical type it implies, normalises it, maps the
-document's own data onto stream transfers, and elaborates a Chisel interface
-that is checked cycle for cycle against that result.
+`tinytydi/`. 
+This set of tools is centred around an executable version of the semantics, simulating an interface, illustrating how for a given type it iteratively map elements onto transfers.
+By supplying an intialized json object, the tool can derive the tydi-type equivalent, normalize it and subsequently apply the simulation of the interface to the elements. 
+This way you can visualize how the formalism would transmit your json object over the wire. 
+Furthermore, since a set of input streams has a strict 1to1 correspondence of the output stream, the simulated trace can be used to verify the hardware implementation. 
+by invoking the export funcitonality, the toolset can export implementation tables, which can be interpredted by our chisel implementation, to generate the actual HDL that implements an interface of the provided type and behavior. 
+It is worth noting that this integration is intended for the tutorial illustration purposes, whereas a fully fledged generator tooling would generate the chisel directly from the formal implementation. The tutorial implementation results in quite a few additional signals and debug probes that would be undesirable in an actual implementation. . 
 
 Clone with submodules, or fetch them afterwards:
 
@@ -53,91 +56,112 @@ git submodule update --init tinytydi
 ```
 
 The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
-the submodule out and builds the stimulus bundles the Chisel tests read. Those
-bundles are generated, not committed, so if you skipped the container run the
-script by hand from the repository root:
+the submodule out and builds the stimulus bundles the Chisel tests read. 
 
 ```sh
 bash .devcontainer/bootstrap.sh
 ```
 
-It is idempotent, so re-running it costs nothing. The walkthrough below also
-exports a bundle itself, which is the other way to get one.
-
-This repository's own `tydi-material/chat-messages/chat-messages.json` is the
-worked example:
+Start with the chat message example from the paper and the presentation. 
 
 ```sh
-python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --type-only
+cd tinytydi
+./main.py example
 ```
 
-It maps to `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
+It steps the semantics one Enter at a time, redrawing the input registers, the
+parse tree, the lane buffers and the transfers so far after every step, with the
+rule that fired named above them. Characters appear as letters rather than
+bytes, with the dimension they close in brackets. The 13 characters of the
+message take roughly forty steps.
+
+This repository's own `tydi-material/chat-messages/chat-messages.json` is a slight expansion of the worked example, adding user id and message id. 
+
+```sh
+python3 ./main.py json tydi-material/chat-messages/chat-messages.json --type-only
+```
+
+This json is mapped to the tydi type `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
 and normalises to three physical streams: the chat id, a 64-bit payload packing
 `timestamp`, `message_id` and `user_id` together, and the message characters at
-dimension 4. The walkthrough below takes that same document the rest of the
-way, to characters on a waveform.
+dimension 4. Per stream it also prints the width, the dimension, which json
+fields feed it and how many elements it carries. Without `--type-only` the
+document's own data is run through the semantics as well, which prints the
+dashboard described below and a transfer count for the whole document.
 
-`tydi-material/student-example/student.json` is deliberately *not* accepted:
-its `"study_end": null` is an optional, which is a `Union` of the value and
-nothing, and `Union` is outside the fragment TinyTydi implements. The error
-names the path that caused it.
+Of note, the simulator currently does not support Unions. This means nullable fields and variant types in json schema cannot be translated to their tydi equivalent. 
+`tydi-material/student-example/student.json` is an example and deliberately *not* accepted:
+its `"study_end": null` is an optional, which is a `Union` of the value and nothing.
 
 > [!NOTE]
 > `tinytydi/hdl/invoke-surfer` is not the `invoke-surfer` in this repository's
 > root. The root script drives the ChiselTrace sample circuits; the TinyTydi one
 > takes a bundle name and reports whether Tywaves type information was found.
 
-### From a JSON document to characters on a waveform
+### From json to a waveform
 
-The whole path, on any document you like. Four commands, and the only one that
-takes real time is the third.
-
-```sh
-# Steps 1 and 2 run from the repository root.
-
-# 1. what type does the document imply? Three physical streams, and the message
-#    text ends up as 8-bit elements at dimension 4.
-python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --type-only
+```
+# 1. derive the tydi type of the document: three physical streams, with the
+#    message text as 8-bit elements at dimension 4.
+python3 ./main.py json tydi-material/chat-messages/chat-messages.json --type-only
 
 # 2. turn it into a stimulus bundle: the parameters the circuit is elaborated
 #    from, the elements themselves, and the cycle-by-cycle trace to check against
-python3 tinytydi/main.py export --json tydi-material/chat-messages/chat-messages.json \
+python3 ./main.py export --json tydi-material/chat-messages/chat-messages.json \
                                 --lanes 1,2,4 --out tinytydi/hdl/bundles/chatmsgs
 
 # 3. elaborate the interface for that type and simulate it (about 20 s warm).
-#    Steps 3 and 4 resolve their paths against the working directory, so from
-#    here on you are in tinytydi/hdl rather than at the root.
-cd tinytydi/hdl
+cd /hdl
 scala-cli test .
 
 # 4. open the waveform with the characters already on it
 ./invoke-surfer chatmsgs --chars
 ```
 
-Step 4 prints `Tywaves: on (typed hgldd: ...)` before it opens anything. If it
-says anything else, the waveform will still open but the types will not be
-there, and the line says which of the two reasons applies.
+Step 4 prints `Tywaves: on (typed hgldd: ...)` before it opens anything. On
+anything else the waveform still opens, but without type information, and the
+line states which of the two reasons applies.
 
-**Then one click in the viewer.** The rows are loaded but they are numbers:
-right-click a `value` row → Format → **ASCII** to read them as characters.
-Nothing on the command line can preselect a format, so this step cannot be
-automated away.
+The character rows are loaded, but as numbers. Right-click a `value` row and set
+Format to Tywaves ASCII to read them as characters. This cannot be preselected from the
+command line.
 
-Expand `outStream_2` and you are looking at the thing the formalism describes:
-four character lanes filling up, `strb` and `endi` marking how many of them
-carry data in this transfer, and `last(i)` closing dimensions — one bit per
-dimension, so a lane that ends a word sets bit 0, a lane that ends a message
-sets bits 0 and 1, and so on outwards. `in_2` above it shows the element side
-one character per cycle, and `_state_output` below is the parse FSM: one bit per
-node of the normalised type, all of them set on the cycle `fullMap` fires.
+Expand `outStream_2` to see the four character lanes fill up. `strb` and `endi`
+mark how many lanes carry data in a transfer, and `last(i)` closes dimensions,
+one bit per dimension: a lane that ends a word sets bit 0, a lane that ends a
+message sets bits 0 and 1, and so on outwards. `in_2` above it shows the element
+side, one character per cycle. `_state_output` below it is the parse FSM, one
+bit per node of the normalised type, all of them set on the cycle `fullMap`
+fires.
 
-The same works for any accepted document — `python3 tinytydi/main.py export
+The same works for any accepted document. Run `python3 tinytydi/main.py export
 --json yours.json --lanes 1,2,4 --out tinytydi/hdl/bundles/yours` from the root,
-then `scala-cli test .` in `tinytydi/hdl` picks the new bundle up on its own,
-because every directory under `bundles/` is a test case.
+after which `scala-cli test .` in `tinytydi/hdl` picks the new bundle up on its
+own, because every directory under `bundles/` is a test case.
 
-`tinytydi/hdl/README.md` has the longer version: which signals to add and why,
-and why a trace of an eight-node type contains 285 of them.
+`tinytydi/hdl/README.md` further describes the method for generating the hardware. 
+
+### Other subcommands
+
+`./main.py` without arguments lists them. Besides `example`, `json` and
+`export`:
+
+- `simulate` is the same machinery with every choice open. Without options it
+  prompts for type, lanes, ruleset and mode, and `?` at a prompt explains that
+  choice. `--mode all` enumerates every admissible order in which the internal
+  streams can terminate and runs each of them, `--mode random` runs a single
+  instance and is the one to combine with `--interactive`. `--ruleset core`
+  swaps P_C3 for P_core, which terminates transfer buffers on the outermost
+  dimension only.
+- `fsm` derives the control loop of the interface from the type directly,
+  without simulating. A state is the set of terminated parse tree nodes at a
+  cycle boundary, an edge is one cycle. It prints the states and transitions as
+  a table, and `--out` writes a Graphviz and a Mermaid version. The size of the
+  machine indicates what the type hierarchy and the property set cost you in
+  control logic.
+- `normalise` prints the reduction from the surface type to the normalized type
+  one rewrite at a time. It is also the quickest way to count the physical
+  streams of a type, which is how many values `--lanes` expects.
 
 ---
 
