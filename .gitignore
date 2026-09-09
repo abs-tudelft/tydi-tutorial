@@ -8,4 +8,4 @@ test_run_dir
 *.vcd
 *.fir
 pdg.json
-.vscode
+.vscode/settings.json
