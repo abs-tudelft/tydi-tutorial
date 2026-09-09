@@ -1,6 +1,17 @@
 # Tydi tutorial
 This repository contains all the tools and educational ematerial and code to learn about and get started with the Tydi tools and ecosystem.
 
+> [!TIP]
+> We recommend starting the download of the Docker image already. Check the [Choosing a container flavour section](#choosing-a-container-flavour). Use either
+> ```sh
+> docker pull hdltypetech/tydi-tools:cli-latest
+> ```
+> or
+> ```sh
+> docker pull hdltypetech/tydi-tools:vnc-latest
+> ```
+> The `vnc` image is built on top of the `cli` image, so also the download is incremental.
+
 ## What is the Tydi ecosystem?
 The Tydi ecosystem encompasses several software tools, a communication standard, and an ideology.
 
