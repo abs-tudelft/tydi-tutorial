@@ -47,15 +47,22 @@ that is checked cycle for cycle against that result.
 Clone with submodules, or fetch them afterwards:
 
 ```sh
-git clone --recurse-submodules git@github.com:abs-tudelft/tydi-tutorial.git
+git clone --recurse-submodules https://github.com/abs-tudelft/tydi-tutorial.git
 # or, in an existing clone:
 git submodule update --init tinytydi
 ```
 
 The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
 the submodule out and builds the stimulus bundles the Chisel tests read. Those
-bundles are generated, not committed, so run that script by hand if you skipped
-the container.
+bundles are generated, not committed, so if you skipped the container run the
+script by hand from the repository root:
+
+```sh
+bash .devcontainer/bootstrap.sh
+```
+
+It is idempotent, so re-running it costs nothing. The walkthrough below also
+exports a bundle itself, which is the other way to get one.
 
 This repository's own `tydi-material/chat-messages/chat-messages.json` is the
 worked example:
@@ -67,13 +74,8 @@ python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --t
 It maps to `Dim(Group(Bits(64), Dim(Group(Bits(32), Bits(16), Bits(16), Dim(Dim(Bits(8)))))))`
 and normalises to three physical streams: the chat id, a 64-bit payload packing
 `timestamp`, `message_id` and `user_id` together, and the message characters at
-dimension 4. Then:
-
-```sh
-cd tinytydi/hdl
-scala-cli test .          # elaborate per bundle, check against the semantics
-./invoke-surfer chatmsgs  # open the waveform
-```
+dimension 4. The walkthrough below takes that same document the rest of the
+way, to characters on a waveform.
 
 `tydi-material/student-example/student.json` is deliberately *not* accepted:
 its `"study_end": null` is an optional, which is a `Union` of the value and
@@ -91,19 +93,22 @@ The whole path, on any document you like. Four commands, and the only one that
 takes real time is the third.
 
 ```sh
-cd tinytydi
+# Steps 1 and 2 run from the repository root.
 
 # 1. what type does the document imply? Three physical streams, and the message
 #    text ends up as 8-bit elements at dimension 4.
-./main.py json ../tydi-material/chat-messages/chat-messages.json --type-only
+python3 tinytydi/main.py json tydi-material/chat-messages/chat-messages.json --type-only
 
 # 2. turn it into a stimulus bundle: the parameters the circuit is elaborated
 #    from, the elements themselves, and the cycle-by-cycle trace to check against
-./main.py export --json ../tydi-material/chat-messages/chat-messages.json \
-                 --lanes 1,2,4 --out hdl/bundles/chatmsgs
+python3 tinytydi/main.py export --json tydi-material/chat-messages/chat-messages.json \
+                                --lanes 1,2,4 --out tinytydi/hdl/bundles/chatmsgs
 
-# 3. elaborate the interface for that type and simulate it (about 20 s warm)
-cd hdl && scala-cli test .
+# 3. elaborate the interface for that type and simulate it (about 20 s warm).
+#    Steps 3 and 4 resolve their paths against the working directory, so from
+#    here on you are in tinytydi/hdl rather than at the root.
+cd tinytydi/hdl
+scala-cli test .
 
 # 4. open the waveform with the characters already on it
 ./invoke-surfer chatmsgs --chars
@@ -126,9 +131,10 @@ sets bits 0 and 1, and so on outwards. `in_2` above it shows the element side
 one character per cycle, and `_state_output` below is the parse FSM: one bit per
 node of the normalised type, all of them set on the cycle `fullMap` fires.
 
-The same works for any accepted document — `./main.py export --json yours.json
---lanes 1,2,4 --out hdl/bundles/yours`, then `scala-cli test .` picks the new
-bundle up on its own, because every directory under `bundles/` is a test case.
+The same works for any accepted document — `python3 tinytydi/main.py export
+--json yours.json --lanes 1,2,4 --out tinytydi/hdl/bundles/yours` from the root,
+then `scala-cli test .` in `tinytydi/hdl` picks the new bundle up on its own,
+because every directory under `bundles/` is a test case.
 
 `tinytydi/hdl/README.md` has the longer version: which signals to add and why,
 and why a trace of an eight-node type contains 285 of them.
