@@ -1,8 +1,9 @@
 # Tydi
 
-In this tutorial you will learn about Tydi step by step through examples. For a top-down read-trough of what Tydi is and how types are built up, see the [Understanding Tydi page](https://abs-tudelft.github.io/docs/tydi/what-is-tydi/) of the documentation.
+In this tutorial you will learn about Tydi and the accompanying tools step by step through examples. For a top-down read-trough of what Tydi is and how types are built up, see the [Understanding Tydi page](https://abs-tudelft.github.io/docs/tydi/what-is-tydi/) of the documentation.
 
-## A simple stream
+## The Tydi protocol
+### A simple stream
 
 For our first stream, we will take a look at a data stream as one could receive from a minimal weather station with temperature and humidity sensor. Its data might look like:
 
@@ -26,7 +27,7 @@ For our first stream, we will take a look at a data stream as one could receive 
 ]
 ```
 
-We will convert this data type to a Tydi structure to understand the mapping process and get an idea of what a stream is. For this, [open the example in the Tydi Stream Visualizer](http://localhost:5173/tydi-stream-vis/#input=%5B%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068058000%2C%0A%20%20%20%20%22temperature%22%3A%2021.5%2C%0A%20%20%20%20%22humidity%22%3A%2045.2%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068118000%2C%0A%20%20%20%20%22temperature%22%3A%2021.8%2C%0A%20%20%20%20%22humidity%22%3A%2044.8%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068178000%2C%0A%20%20%20%20%22temperature%22%3A%2022.1%2C%0A%20%20%20%20%22humidity%22%3A%2044.5%0A%20%20%7D%0A%5D). The JSON code from above is pre-filled as data input.
+We will convert this data type to a Tydi structure to understand the mapping process and get an idea of what a stream is. For this, [open the example in the Tydi Stream Visualizer](http://localhost:5173/tydi-stream-vis/#input=%5B%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068058000%2C%0A%20%20%20%20%22temperature%22%3A%2021.5%2C%0A%20%20%20%20%22humidity%22%3A%2045.2%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068118000%2C%0A%20%20%20%20%22temperature%22%3A%2021.8%2C%0A%20%20%20%20%22humidity%22%3A%2044.8%0A%20%20%7D%2C%0A%20%20%7B%0A%20%20%20%20%22timestamp%22%3A%201773068178000%2C%0A%20%20%20%20%22temperature%22%3A%2022.1%2C%0A%20%20%20%20%22humidity%22%3A%2044.5%0A%20%20%7D%0A%5D). The JSON code from above is pre-filled as data input. For more info, see [Appendix: Visualizer application](#visualizer-application).
 
 In the **Tydi structure builder** panel, you will see something like this
 
@@ -34,24 +35,40 @@ In the **Tydi structure builder** panel, you will see something like this
 
 Clearly, a `Group` is being created (analog to an object), with several fields (analog to the properties), each of which is a base number, and so emitted as `Bit` types. You can customize the bit-widths of the fields. For example, the float values for temperature and humidity might be a `single` (instead of `double`), and thus be `32` bits.
 
-In the **stream visualizer** panel, our stream of 3 elements can be inspected. If you click one of the packets, the data in the source JSON (data import panel) will be highlighted and the **packet inspector** panel will automatically open. There the layout of the packet can be inspected together with its index and dimensionality information. If you click the last element (in purple), you will see that the dimensionality information indicates `1`, as it is the last element of the stream.
+In the **stream visualizer** panel, our stream of 3 elements can be inspected. If you click one of the packets, the data in the source JSON (data import panel) will be highlighted and the **packet inspector** panel will automatically open. There the layout of the packet can be inspected together with its index and dimensionality information. If you click the last element (in pink), you will see that the dimensionality information indicates `1`, as it is the last element of the stream.
 
-## TinyTydi: from a JSON document to a Tydi interface
+### Multidimensional data
 
-[TinyTydi](https://gitlab.com/hstruik/tinytydi) is included as a submodule in
-`tinytydi/`. It runs the Tydi formalism as an executable semantics: it reads a
-JSON document, infers the logical type it implies, normalises it, maps the
+For the next example, we will investigate how multi-dimensional data is transferred. For this, we have the sentence “She is a dolphin”. For the purpose of this example, we encode this sentence as an array of words, where each word is built up out of characters. This means, that the base type for our stream is a character. In JSON, we will encode the data as an array of strings though.
+```json
+["she", "is", "a", "dolphin"]
+```
+[Open in the stream visualizer](https://abs-tudelft.github.io/tydi-stream-vis/#input=%5B%22she%22%2C%20%22is%22%2C%20%22a%22%2C%20%22dolphin%22%5D)
+
+This will give you the simple block structure shown below.
+
+![Temperature and humidity sensor example](./figures/she-is-a-dolphin-blocks.svg)
+
+By default, strings get recognized as a stream of characters in the application. Because it is not just a string we want to transmit, but an *array* of strings, the dimensionality of the data is increased. In contrast to the previous example, this stream, by default, also has multiple lanes, to reduce the horizontal space required to view all the transfers in the **stream visualizer** panel. The panel shows each character sent over the bus. The end of each word is marked by a yellow element and the end of the entire sequence again pink. Click the elements to check out the `last` flags information of the packet.
+
+## Tooling
+
+The tooling available for code generation for Tydi interfaces and circuits comprises of two parts that will later be merged to a singular comprehensive toolset. One set of tools available creates the plumbing between components that are assumed to have a Tydi compliant interface. The other toolset, still in development, allows generating the actual interface logic based on the formalism to *ensure* a Tydi compliant interface, loosening the constraints to the developer to build components with Tydi interfaces.
+
+### TinyTydi: from a JSON document to a Tydi interface
+
+> [!NOTE]
+> As the [TinyTydi](https://gitlab.com/hstruik/tinytydi) project is still in development, it is included as a *submodule* in `tinytydi/`, instead of being baked in the docker image. If you followed the instructions in the [main readme](../README.md), the submodule should be initialized already. If not, run
+> ```sh
+> git submodule update --init tinytydi
+> ```
+
+TinyTydi runs the Tydi formalism as an executable semantics: it reads a
+`JSON` document, infers the **logical type** it implies, normalises it, maps the
 document's own data onto stream transfers, and elaborates a Chisel interface
 that is checked cycle for cycle against that result.
 
-Clone with submodules, or fetch them afterwards:
-
-```sh
-git clone --recurse-submodules https://github.com/abs-tudelft/tydi-tutorial.git
-# or, in an existing clone:
-git submodule update --init tinytydi
-```
-
+-------- FIXME STARTS HERE --------
 The dev container runs `.devcontainer/bootstrap.sh` on creation, which checks
 the submodule out and builds the stimulus bundles the Chisel tests read. Those
 bundles are generated, not committed, so if you skipped the container run the
@@ -139,33 +156,13 @@ because every directory under `bundles/` is a test case.
 `tinytydi/hdl/README.md` has the longer version: which signals to add and why,
 and why a trace of an eight-node type contains 285 of them.
 
+-------- FIXME ENDS HERE --------
+
 ---
 
 ## Original material
 
 Material for experimenting with Tydi is given in this markdown file and in the tydi-material folder.
-
-## Visualizer application
-
-Access the Tydi visualizer application at [https://abs-tudelft.github.io/tydi-stream-vis/](https://abs-tudelft.github.io/tydi-stream-vis/).
-
-It is meant to be used in the following way:
-
-1. Insert `json` data containing an example of what you want to transfer in your hardware design
-2. The data's data schema is extracted
-3. A Tydi structure is created in the [Blockly](https://www.blockly.com/) canvas based on this data schema
-    - Each element is given a path mapping to the original data
-    - Nullable elements are converted to `Union`s
-4. Each stream in the schema (corresponding to a sequence) is split into a separate *physical stream* and data packets are constructed based on the input data
-5. Stream transfers are visualized using these data packets
-
-To facilitate this, the app has several tabs:
-
-- Data import: paste JSON content here
-- Code generator: shows code for Tydi-lang, Chisel, and Clash to create the actual hardware design for the Tydi structure
-- Tydi structure builder: the Blockly canvas that visually shows, and allows editing, the Tydi structure
-- Stream visualizer: shows all physical streams of the Tydi hierarchy, together with a table of the transfers and their elements based on the JSON input data
-- Packet inspector: when a packet is clicked in the stream visualizer, this panel shows more detailed information about the stream and the specific packet. This includes the dimensionality information, indexes in the source sequences, packet content, and the binary data packing.
 
 ## Pipeline example
 
@@ -755,3 +752,26 @@ An example that shows various interesting aspects of Tydi’s typing and protoco
 - Inspect the data packing of the message data. Change the bit widths in the block editor.
 - Change the number of lanes of some streams.
 - Inspect the dimensionality (`last` flags) information of the message text. Different sequence endings have different colours.
+
+## Appendix
+### Visualizer application
+
+Access the Tydi visualizer application at [https://abs-tudelft.github.io/tydi-stream-vis/](https://abs-tudelft.github.io/tydi-stream-vis/).
+
+It is meant to be used in the following way:
+
+1. Insert `json` data containing an example of what you want to transfer in your hardware design
+2. The data's data schema is extracted
+3. A Tydi structure is created in the [Blockly](https://www.blockly.com/) canvas based on this data schema
+    - Each element is given a path mapping to the original data
+    - Nullable elements are converted to `Union`s
+4. Each stream in the schema (corresponding to a sequence) is split into a separate *physical stream* and data packets are constructed based on the input data
+5. Stream transfers are visualized using these data packets
+
+To facilitate this, the app has several tabs:
+
+- Data import: paste JSON content here
+- Code generator: shows code for Tydi-lang, Chisel, and Clash to create the actual hardware design for the Tydi structure
+- Tydi structure builder: the Blockly canvas that visually shows, and allows editing, the Tydi structure
+- Stream visualizer: shows all physical streams of the Tydi hierarchy, together with a table of the transfers and their elements based on the JSON input data
+- Packet inspector: when a packet is clicked in the stream visualizer, this panel shows more detailed information about the stream and the specific packet. This includes the dimensionality information, indexes in the source sequences, packet content, and the binary data packing.
