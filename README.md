@@ -1,6 +1,18 @@
 # Tydi tutorial
 This repository contains all the tools and educational ematerial and code to learn about and get started with the Tydi tools and ecosystem.
 
+> [!TIP]
+> We recommend starting the download of the Docker image already. Check the [Choosing a container flavour section](#choosing-a-container-flavour). Use either
+> ```sh
+> docker pull hdltypetech/tydi-tools:cli-latest
+> ```
+> or
+> ```sh
+> docker pull hdltypetech/tydi-tools:vnc-latest
+> ```
+> The `vnc` image is built on top of the `cli` image, so also the download is incremental.  
+> Apart from that, check the [prerequisites](#prerequisites).
+
 ## What is the Tydi ecosystem?
 The Tydi ecosystem encompasses several software tools, a communication standard, and an ideology.
 
@@ -38,7 +50,21 @@ In this tutorial, you will learn
 - Our vision for the future of hardware design
 
 ## Getting started
-Get started by cloning the repo. Then, open the project in an IDE. For this tutorial we will assume [VS Code](https://code.visualstudio.com/).
+### Prerequisites
+In order to follow this tutorial, you will need the following
+1. [**Visual Studio Code**](https://code.visualstudio.com/)
+   * A different IDE may also work, but we will assume VS Code for this tutorial.
+   * As a most barebone experience, you might use `docker run -it --rm -v "$(pwd)":/root/workspace -w /root/workspace hdltypetech/tydi-tools:cli-latest bash` and edit files locally using your favourite tools.
+2. **A Container Engine:**
+   * [Docker Desktop](https://www.docker.com/products/docker-desktop/) *(Recommended for Windows/macOS)*
+   * **Or** an alternative like [OrbStack](https://orbstack.dev/) (macOS), [Rancher Desktop](https://rancherdesktop.io/), or [Podman](https://podman.io/). This is untested though, and may require changing the `Dev Containers: Docker Path` setting.
+3. **VS Code Dev Containers extension** ([`ms-vscode-remote.remote-containers`](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers))
+
+> [!IMPORTANT]
+> When using Windows, it is recommended to have [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) set up to act as Docker's back-end.
+
+### Instructions
+Get started by cloning the repo. Then, open the project in VS Code.
 ```sh
 # Clone repo
 git clone --recurse-submodules https://github.com/abs-tudelft/tydi-tutorial.git
@@ -47,7 +73,13 @@ cd tydi-tutorial
 code .
 ```
 
-This repository contains a project with development container that you can be used in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you cloned the project and opened the folder in VS Code, the dev container will be detected and a notification will ask if you want to reopen the folder in the dev container. If you say yes, a pop-up will ask you *which* container you want, see details below to make a choice. When you open the project in the dev ctonainer, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available.
+This repository contains a project with **development container** that you can be used in VS Code. With this set-up, you can easily write and edit code, and execute the tools of the Tydi ecosystem on those files. Once you cloned the project and opened the folder in VS Code, there are a few ways to activate it
+
+1. If the the [Dev Container extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) is already installed, the `.devcontainer` configs will be detected and a notification will ask if you want to reopen the folder in the dev container.
+2. You can trigger it as action by pressing <kbd>F1</kbd> and selecting `> Dev Containers: Open Folder in Container`
+3. If it does not show the notification, the extension may not be installed yet. The following button will trigger opening the folder in a dev container and ask if you want to instal the extension if you don't have it yet. [![Open folder in Dev Container](https://img.shields.io/badge/Dev%20Containers-Open%20Folder-blue?logo=visualstudiocode)](vscode://ms-vscode-remote.remote-containers/openFolder?url=file:///${workspaceFolder})
+
+Once you activate opening the folder in the dev container, a pop-up will ask you *which* container you want, see the details below to make a choice. When the project is opened in the dev container, the files will live in the container, and the terminal will execute commands within the container, meaning that all CLI tools are available.
 
 ### Choosing a container flavour
 
