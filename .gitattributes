@@ -1,0 +1,4 @@
+# Force \n instead of \r\n for shell scripts
+*.sh text eol=lf
+invoke-chiseltrace text eol=lf
+invoke-surfer text eol=lf
