@@ -83,15 +83,42 @@ Once you activate opening the folder in the dev container, a pop-up will ask you
 
 ### Choosing a container flavour
 
-Two flavours of the container are provided, and VS Code will let you pick one when you reopen the folder in a container (`Dev Containers: Reopen in Container`). To switch flavours later, run `Dev Containers: Reopen in Container` again and select the other one.
+Three flavours of the container are provided, and VS Code will let you pick one when you reopen the folder in a container (`Dev Containers: Reopen in Container`). To switch flavours later, run `Dev Containers: Reopen in Container` again and select another one.
 
 - **Tydi-Tools (VNC desktop)** – [`.devcontainer/vnc`](.devcontainer/vnc/devcontainer.json). Recommended for beginners and macOS users. In addition to the CLI tools, it runs a lightweight XFCE desktop environment, exposed as a browser-based noVNC interface on http://localhost:6080/vnc.html. This may be more intuitive for some users. The resolution of this virtual desktop may be changed with the `DESKTOP_RESOLUTION` variable in its `devcontainer.json`.
-- **Tydi-Tools (CLI only)** – [`.devcontainer/cli`](.devcontainer/cli/devcontainer.json). The same CLI tools, without the desktop and noVNC server. GUI apps may still work when launched from the terminal. It works well on Linux, acceptable but a bit less smoothly on Windows, macOS needs an X11 server.
+- **Tydi-Tools (CLI only)** – [`.devcontainer/cli`](.devcontainer/cli/devcontainer.json). The same CLI tools, without the desktop and noVNC server. GUI apps may still work when launched from the terminal. It works well on Linux with the native Docker Engine, acceptable but a bit less smoothly on Windows, macOS needs an X11 server. On Linux with Docker Desktop, see the note below.
+- **Tydi-Tools (CLI, X11 over TCP)** – [`.devcontainer/cli-x11`](.devcontainer/cli-x11/devcontainer.json). Only for Linux hosts running **Docker Desktop**, where GUI apps cannot reach your screen from the "CLI only" flavour (see below). Everything else is identical to that flavour. Do not pick this one on macOS or Windows, or on Linux with the native Docker Engine: there GUI forwarding already works, and this flavour's hardcoded `DISPLAY` would only get in the way.
 
 > [!NOTE]
-> On Windows, starting the dev container may fail if WSL integration is not enabled in the Docker desktop settings (see Resources tab). An alternate solution may be turning off "Mount Wayland Socket" in VS Code's settings.
+> On Windows, starting the dev container may fail if WSL integration is not enabled in the Docker desktop settings (see Resources tab). An alternate solution may be turning off "Mount Wayland Socket" in VS Code's settings. This is Windows-specific advice: on Linux that setting is what makes GUI apps work in the first place, so leave it on there.
+
+#### GUI apps on Linux with Docker Desktop
+
+If GUI apps such as Surfer refuse to open from the terminal in the "CLI only" flavour, and you are on Linux, see the info below
+
+<details>
+Check which Docker you are talking to:
+
+```sh
+docker context ls   # an active "desktop-linux" context means Docker Desktop
+```
+
+Docker Desktop on Linux runs your containers inside a **virtual machine**, even though the host is already Linux. Its file sharing only covers `/home`, so the X11 socket (`/tmp/.X11-unix`) and the Wayland socket (`$XDG_RUNTIME_DIR/wayland-0`) cannot be bind-mounted into the container:
+
+```
+docker: mounts denied: The path /tmp/.X11-unix is not shared from the host
+```
+
+Adding those paths to File Sharing does not help either. A Unix domain socket is a kernel object, so connecting to one requires the listener to live in the same kernel, which it does not across the VM boundary. Socket forwarding is exactly the mechanism the Dev Containers extension uses to make GUI apps work, so on Docker Desktop that mechanism cannot work at all. There are two ways out:
+
+1. **Use the native Docker Engine** (recommended, and the permanent fix). Install [Docker Engine](https://docs.docker.com/engine/install/ubuntu/), then `docker context use default`. Bind mounts are then real bind mounts on your own kernel, the Dev Containers extension forwards your display again, and the plain "CLI only" flavour works out of the box. Make sure "Mount Wayland Socket" is enabled in VS Code's settings.
+2. **Use the "CLI, X11 over TCP" flavour.** It keeps Docker Desktop and reaches your X server over a loopback TCP port instead of a socket. Its `initializeCommand` runs [`.devcontainer/host-x11-bridge.sh`](.devcontainer/host-x11-bridge.sh) on your host, which copies the X cookie to `~/.tydi-xauth` and starts a `socat` bridge from `127.0.0.1:6000` to your X server. This needs `socat` and `xauth` on the host (`sudo apt install socat x11-xserver-utils`). It works under both Xorg and Wayland, since the container talks to Xwayland, and it is bound to loopback on purpose: never expose an X server to your network. The flavour also forces software OpenGL rendering, because direct rendering is not available over a TCP X connection; without that, Surfer loads its waveform and then hangs before opening a window.
+
+> [!NOTE]
+> The macOS build of Docker Desktop uses a VM for the same reason, which is why macOS users are pointed at the VNC flavour. The VNC flavour sidesteps all of this, on every platform, by running its own X server inside the container.
 
 Documenation on the container may be found on its [Docker Hub page](https://hub.docker.com/r/hdltypetech/tydi-tools), or its [GitHub repository](https://github.com/abs-tudelft/Tydi-tools).
+</details>
 
 ## Instructions
 

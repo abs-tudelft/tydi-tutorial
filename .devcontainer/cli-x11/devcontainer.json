@@ -1,0 +1,72 @@
+{
+  "name": "Tydi-Tools (CLI, X11 over TCP)",
+
+  // A workaround flavour, for Linux hosts running Docker Desktop.
+  //
+  // Docker Desktop on Linux runs containers in a VM whose file sharing only
+  // covers /home, so the X11 and Wayland sockets cannot be bind-mounted and
+  // the Dev Containers extension's automatic GUI forwarding cannot work. This
+  // flavour reaches the host's X server over TCP instead.
+  //
+  // Pick "Tydi-Tools (CLI only)" instead if you are on the native Docker
+  // Engine, on macOS, or on Windows: there, GUI forwarding already works and
+  // this flavour's hardcoded DISPLAY would only get in the way.
+  "image": "hdltypetech/tydi-tools:cli-latest",
+
+  // Mounting the workspace directory to /root/workspace in the container
+  "workspaceMount": "source=${localWorkspaceFolder},target=/root/workspace,type=bind",
+  "workspaceFolder": "/root/workspace",
+
+  // Runs on the host before the container starts: writes the X cookie to
+  // ~/.tydi-xauth and starts the loopback TCP bridge that DISPLAY points at.
+  // Without it the container has nothing to connect to.
+  "initializeCommand": "bash .devcontainer/host-x11-bridge.sh",
+
+  // host.docker.internal is Docker Desktop's name for the host, and port 6000
+  // is display :0. XAUTHORITY has to be set explicitly: libX11 falls back to
+  // ~/.Xauthority, but being explicit keeps this working if the image ever
+  // ships a home directory of its own.
+  //
+  // LIBGL_ALWAYS_SOFTWARE is not optional here. Surfer renders through OpenGL,
+  // and direct rendering needs shared memory and a DRI device, neither of
+  // which exists over a TCP X connection. Without this, Surfer starts, loads
+  // the waveform, and then hangs before it ever creates a window, with nothing
+  // in its log to say why. Software rendering is fast enough for waveforms.
+  "containerEnv": {
+    "DISPLAY": "host.docker.internal:0",
+    "XAUTHORITY": "/root/.Xauthority",
+    "LIBGL_ALWAYS_SOFTWARE": "1"
+  },
+
+  "mounts": [
+    // A named volume for the Scala dependency cache, shared with the other
+    // flavours. Without it, every rebuild re-downloads roughly 700 MB for
+    // tinytydi/hdl and the sample circuits.
+    "source=tinytydi-coursier,target=/var/cache/coursier,type=volume",
+
+    // The cookie written by host-x11-bridge.sh. It lives under $HOME because
+    // that is the only host path Docker Desktop shares into its VM.
+    "source=${localEnv:HOME}/.tydi-xauth,target=/root/.Xauthority,type=bind,readonly"
+  ],
+
+  // Checks out the TinyTydi submodule and builds the stimulus bundles its
+  // Chisel tests read. Idempotent, and never fails the container.
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+
+  // Development extensions that are useful for working with Tydi-tools
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "scalameta.metals",         // Scala & Chisel support (Metals)
+        "ms-python.python",         // Python extension
+        "ms-python.vscode-pylance", // Smart code completion for Python
+        "tamasfe.even-better-toml"  // Useful for the Tydi-lang config files
+      ]
+    }
+  }
+
+  // NOTE: do not set "overrideCommand": false here. This image's CMD is plain
+  // `bash`, which exits immediately without a TTY, so the container would stop
+  // right after starting ("container ... is not running"). Leaving it at its
+  // default (true) makes VS Code supply its own keep-alive command.
+}
